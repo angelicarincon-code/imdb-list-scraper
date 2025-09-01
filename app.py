@@ -22,15 +22,31 @@ def parse_imdb_list(url):
         return pd.DataFrame()
 
     soup = BeautifulSoup(response.text, "html.parser")
-    data = []
 
+    # Caso 1: Top 250 (tabla)
+    if "/chart/top" in url:
+        rows = soup.select("tbody.lister-list tr")
+        data = []
+        for idx, row in enumerate(rows, start=1):
+            title = row.find("td", class_="titleColumn").a.get_text(strip=True)
+            year = row.find("span", class_="secondaryInfo").get_text(strip=True).replace("(", "").replace(")", "")
+            rating = row.find("td", class_="ratingColumn imdbRating").strong.get_text(strip=True)
+            votes = row.find("td", class_="ratingColumn imdbRating").strong['title'].split(" ")[3].replace(",", "")
+            data.append({
+                "No.": idx,
+                "Title": title,
+                "Year": year,
+                "Duration": "",
+                "Age": "",
+                "Rating": rating,
+                "Votes": votes
+            })
+        return pd.DataFrame(data)
+
+    # Caso 2: Listas modernas
     items = soup.find_all("div", class_="ipc-metadata-list-summary-item")
-    if not items:
-        st.error("No se encontraron elementos. Puede que el diseño de IMDb haya cambiado.")
-        return pd.DataFrame()
-
+    data = []
     for idx, item in enumerate(items, start=1):
-        # Título
         title_tag = item.find("a", class_="ipc-title-link-wrapper")
         title = title_tag.get_text(strip=True) if title_tag else ""
 
@@ -46,11 +62,9 @@ def parse_imdb_list(url):
             if len(parts) >= 3:
                 age = parts[2]
 
-        # Rating
         rating_tag = item.find("span", class_="ipc-rating-star--rating")
         rating = rating_tag.get_text(strip=True) if rating_tag else ""
 
-        # Votes
         votes_tag = item.find("span", class_="ipc-rating-star--voteCount")
         votes = votes_tag.get_text(strip=True).replace("(", "").replace(")", "") if votes_tag else ""
 
